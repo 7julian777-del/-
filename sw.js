@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "kaidan-pwa-v2";
+﻿const CACHE_NAME = "kaidan-pwa-v3";
 const ASSETS = [
   "./",
   "./index.html",

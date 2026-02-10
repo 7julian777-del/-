@@ -1250,6 +1250,7 @@ async function autoSaveReferenceData(items, customer, location, plate1, plate2, 
 }
 
 async function exportDocx(data, filename, settings) {
+  await loadDocxLib();
   const {
     Document,
     Packer,
