@@ -19,6 +19,12 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+  background: var(--page-bg);
+}
+
 body {
   margin: 0;
   font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -26,6 +32,12 @@ body {
   background: var(--page-bg);
   min-height: 100vh;
   padding-top: 0;
+}
+
+@supports (padding: max(0px)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
 }
 
 .app-header {
