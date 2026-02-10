@@ -375,11 +375,19 @@ function bindInvoiceInputs() {
     });
   });
 
-  qs("#invCustomer").addEventListener("input", fillFromCustomer);
-  qs("#invDriver").addEventListener("input", fillVehicleByAny);
-  qs("#invPhone").addEventListener("input", fillVehicleByAny);
-  qs("#invPlate1").addEventListener("input", fillVehicleByAny);
-  qs("#invPlate2").addEventListener("input", fillVehicleByAny);
+  const customerInput = qs("#invCustomer");
+  const driverInput = qs("#invDriver");
+  const phoneInput = qs("#invPhone");
+  const plate1Input = qs("#invPlate1");
+  const plate2Input = qs("#invPlate2");
+
+  customerInput.addEventListener("input", fillFromCustomer);
+  customerInput.addEventListener("blur", fillFromCustomer);
+
+  [driverInput, phoneInput, plate1Input, plate2Input].forEach((el) => {
+    el.addEventListener("input", fillVehicleByAny);
+    el.addEventListener("blur", fillVehicleByAny);
+  });
 }
 
 function autoFillProduct(row) {
@@ -534,12 +542,18 @@ function fillFromCustomer() {
   }
 }
 
+function normalizeValue(val) {
+  if (!val) return "";
+  return String(val).replace(/\s+/g, "").trim();
+}
+
 function findVehicleMatch(value, field) {
   if (!value) return null;
-  const v = String(value).trim();
-  const exact = state.vehicles.find((row) => (row[field] || "") === v);
+  const v = normalizeValue(value);
+  if (!v) return null;
+  const exact = state.vehicles.find((row) => normalizeValue(row[field] || "") === v);
   if (exact) return exact;
-  return state.vehicles.find((row) => (row[field] || "").includes(v));
+  return state.vehicles.find((row) => normalizeValue(row[field] || "").includes(v));
 }
 
 function fillVehicleByAny() {
@@ -2036,6 +2050,12 @@ function bindActions() {
   qs("#btnExport").addEventListener("click", exportInvoice);
   qs("#btnClear").addEventListener("click", () => {
     qsa("#itemsTable input").forEach((input) => (input.value = ""));
+    qs("#invCustomer").value = "";
+    qs("#invLocation").value = "";
+    qs("#invPlate1").value = "";
+    qs("#invPlate2").value = "";
+    qs("#invDriver").value = "";
+    qs("#invPhone").value = "";
     qs("#invSummary").value = "";
     recalcTotals();
   });
