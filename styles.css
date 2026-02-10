@@ -1,6 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&display=swap");
-
-:root {
+﻿:root {
   color-scheme: light;
   --bg: #f6f2ec;
   --card: #fffaf2;
@@ -76,6 +74,16 @@ body {
   gap: 8px;
   padding: 8px 16px;
   flex-wrap: wrap;
+}
+
+@supports (padding: max(0px)) {
+  .app-header {
+    padding-top: calc(20px + env(safe-area-inset-top));
+  }
+
+  .tabs {
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
 }
 
 .tab-btn {
@@ -385,3 +393,4 @@ button.danger {
     font-size: 16px;
   }
 }
+

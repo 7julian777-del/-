@@ -87,7 +87,7 @@
       </div>
 
       <div class="card">
-        <div class="card-title">产品明细（最多 5 行）</div>
+        <div class="card-title">产品明细（最多 6 行）</div>
         <div class="table-wrap">
           <table class="data-table" id="itemsTable">
             <colgroup>
@@ -149,16 +149,20 @@
                 <td><input data-row="4" data-field="price" inputmode="decimal" /></td>
                 <td><input data-row="4" data-field="amount" inputmode="decimal" /></td>
               </tr>
+              <tr>
+                <td><input data-row="5" data-field="name" list="productList" /></td>
+                <td><input data-row="5" data-field="spec" inputmode="decimal" /></td>
+                <td><input data-row="5" data-field="count" inputmode="decimal" /></td>
+                <td><input data-row="5" data-field="weight" inputmode="decimal" /></td>
+                <td><input data-row="5" data-field="price" inputmode="decimal" /></td>
+                <td><input data-row="5" data-field="amount" inputmode="decimal" /></td>
+              </tr>
             </tbody>
           </table>
           <datalist id="productList"></datalist>
         </div>
         <div class="summary-line">
           <div id="totalsLine">总件数：0    总吨位：0.000    总价格：0</div>
-          <label class="field">
-            <span>摘要</span>
-            <input id="invSummary" placeholder="自动生成，可手动修改" />
-          </label>
         </div>
         <div class="actions">
           <button class="primary" id="btnExport">导出 Word</button>

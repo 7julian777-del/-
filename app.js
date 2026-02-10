@@ -1,6 +1,6 @@
 ﻿/* global docx */
 const DB_NAME = "kaidan-pwa";
-const APP_VERSION = "2026-02-10.1";
+const APP_VERSION = "2026-02-10.2";
 const DB_VERSION = 1;
 const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
@@ -9,6 +9,7 @@ const DOCX_CDN = "https://unpkg.com/docx@8.5.0/build/index.umd.js";
 
 let docxReady = null;
 const CATEGORIES = ["自动", "鸡", "鸡副", "混合"];
+const MAX_ITEM_ROWS = 6;
 
 const state = {
   db: null,
@@ -475,21 +476,17 @@ function recalcTotals() {
   let totalQty = 0;
   let totalWeight = 0;
   let totalAmount = 0;
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < MAX_ITEM_ROWS; i += 1) {
     totalQty += toFloat(getItemValue(i, "count"));
     totalWeight += toFloat(getItemValue(i, "weight"));
     totalAmount += toFloat(getItemValue(i, "amount"));
   }
   qs("#totalsLine").textContent = `总件数：${totalQty.toFixed(0)}    总吨位：${totalWeight.toFixed(3)}    总价格：${totalAmount.toFixed(0)}`;
-  const summary = qs("#invSummary");
-  if (!summary.value.trim()) {
-    summary.value = `共${totalQty.toFixed(0)}件，${totalWeight.toFixed(3)}吨，合计${totalAmount.toFixed(2)}元`;
-  }
 }
 
 function gatherItems() {
   const items = [];
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < MAX_ITEM_ROWS; i += 1) {
     const name = getItemValue(i, "name");
     const spec = getItemValue(i, "spec");
     const count = getItemValue(i, "count");
@@ -1049,7 +1046,7 @@ async function fillInvoiceFromAi(result) {
   fillVehicleByAny();
 
   const items = Array.isArray(result.items) ? result.items : [];
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < MAX_ITEM_ROWS; i += 1) {
     const it = items[i] || {};
     const name = (it.product || "").trim();
     const spec = (it.spec_jin || "").trim();
@@ -1079,7 +1076,7 @@ function getTotals() {
   let totalQty = 0;
   let totalWeight = 0;
   let totalAmount = 0;
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < MAX_ITEM_ROWS; i += 1) {
     totalQty += toFloat(getItemValue(i, "count"));
     totalWeight += toFloat(getItemValue(i, "weight"));
     totalAmount += toFloat(getItemValue(i, "amount"));
@@ -1092,7 +1089,7 @@ async function exportInvoice() {
   await loadDocxLib();
   const items = gatherItems();
   if (!items.length) return alert("请至少填写一行产品");
-  if (items.length > 5) return alert("产品行最多 5 行");
+  if (items.length > MAX_ITEM_ROWS) return alert("产品行最多 6 行");
 
   const invoiceNo = toInt(qs("#invNo").value, 0);
   if (invoiceNo <= 0) return alert("序号必须为正整数");
@@ -1105,14 +1102,12 @@ async function exportInvoice() {
   const plate2 = qs("#invPlate2").value.trim();
   const driver = qs("#invDriver").value.trim();
   const phone = qs("#invPhone").value.trim();
-  const summary = qs("#invSummary").value.trim();
+  const summary = "";
 
   const { totalQty, totalWeight, totalAmount } = getTotals();
   const category = resolveCategory(items);
 
-  if (!qs("#invSummary").value.trim()) {
-    qs("#invSummary").value = `共${totalQty.toFixed(0)}件，${totalWeight.toFixed(3)}吨，合计${totalAmount.toFixed(0)}元`;
-  }
+  // 摘要已移除
 
   const exportItems = items.map((it) => ({
     name: it.name,
@@ -1311,7 +1306,7 @@ async function exportDocx(data, filename, settings) {
   };
 
   const items = data.items || [];
-  const maxRows = 5;
+  const maxRows = MAX_ITEM_ROWS;
 
   const rows = [];
 
@@ -2090,7 +2085,6 @@ function bindActions() {
     qs("#invPlate2").value = "";
     qs("#invDriver").value = "";
     qs("#invPhone").value = "";
-    qs("#invSummary").value = "";
     recalcTotals();
   });
 
@@ -2217,5 +2211,7 @@ init().catch((err) => {
   console.error(err);
   setStatus("加载失败");
 });
+
+
 
 
