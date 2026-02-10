@@ -4,6 +4,9 @@ const DB_VERSION = 1;
 const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
 const DEFAULT_AI_PROMPT = "你是结构化信息抽取助手，只输出严格 JSON，不要输出多余文字。JSON字段为：{\"customer\":\"\", \"destination\":\"\", \"plate\":\"\", \"driver\":\"\", \"date\":\"\", \"items\":[{\"product\":\"\", \"spec_jin\":\"\", \"count\":\"\", \"price_per_ton\":\"\"}]} 图片通常包含多行产品，每行一条 items。 重要：spec_jin/count/price_per_ton 只输出纯数字（不要单位、不要斜杠、不要中文）。 规则：spec_jin 来自“(22斤/件)”中的 22；count 来自“小计/共计325件”中的 325； price_per_ton 来自“价格15030/吨”中的 15030。 示例行：红毛7只(22斤/件): ... 小计325件, 价格15030/吨。 看不清的字段填空字符串 。";
+const DOCX_CDN = "https://unpkg.com/docx@8.5.0/build/index.umd.js";
+
+let docxReady = null;
 const CATEGORIES = ["自动", "鸡", "鸡副", "混合"];
 
 const state = {
@@ -854,6 +857,23 @@ function setAiTestStatus(text) {
   if (el) el.textContent = text;
 }
 
+function loadDocxLib() {
+  if (docxReady) return docxReady;
+  if (window.docx) {
+    docxReady = Promise.resolve();
+    return docxReady;
+  }
+  docxReady = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = DOCX_CDN;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("docx 加载失败"));
+    document.head.appendChild(script);
+  });
+  return docxReady;
+}
+
 async function imageToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1063,6 +1083,7 @@ function getTotals() {
 
 async function exportInvoice() {
   await commitActiveInput();
+  await loadDocxLib();
   const items = gatherItems();
   if (!items.length) return alert("请至少填写一行产品");
   if (items.length > 5) return alert("产品行最多 5 行");
@@ -1881,6 +1902,7 @@ function showDetailModal(inv, items) {
   btn.className = "primary";
   btn.textContent = "重新导出 Word";
   btn.addEventListener("click", async () => {
+    await loadDocxLib();
     const settings = {
       company_title: await getSetting("company_title", DEFAULT_COMPANY_TITLE),
       account_text: await getSetting("account_text", DEFAULT_ACCOUNT_TEXT),
