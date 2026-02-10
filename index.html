@@ -1,0 +1,524 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1f2a24" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>开单助手 PWA</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-title">开单助手</div>
+      <div class="brand-sub">PWA · 本机离线 · 数据仅保存在设备</div>
+    </div>
+    <div class="status" id="appStatus">正在加载…</div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="invoice" role="tab" aria-selected="true">开单</button>
+    <button class="tab-btn" data-tab="customers" role="tab">客户</button>
+    <button class="tab-btn" data-tab="products" role="tab">产品</button>
+    <button class="tab-btn" data-tab="vehicles" role="tab">车辆</button>
+    <button class="tab-btn" data-tab="stats" role="tab">统计</button>
+    <button class="tab-btn" data-tab="settings" role="tab">设置</button>
+  </nav>
+
+  <main>
+    <section class="tab-panel active" id="tab-invoice" role="tabpanel">
+      <div class="card">
+        <div class="card-title">基础信息</div>
+        <div class="grid grid-4">
+          <label class="field">
+            <span>客户</span>
+            <input id="invCustomer" list="customerList" placeholder="输入客户名称" />
+            <datalist id="customerList"></datalist>
+          </label>
+          <label class="field">
+            <span>销售日期</span>
+            <input id="invDate" placeholder="YYYY.M.D" />
+          </label>
+          <label class="field">
+            <span>序号</span>
+            <input id="invNo" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>类别</span>
+            <select id="invCategory">
+              <option value="自动">自动</option>
+              <option value="鸡">鸡</option>
+              <option value="鸡副">鸡副</option>
+              <option value="混合">混合</option>
+            </select>
+          </label>
+          <label class="field span-2">
+            <span>到达地点</span>
+            <input id="invLocation" list="locationList" placeholder="输入地点" />
+            <datalist id="locationList"></datalist>
+          </label>
+          <label class="field">
+            <span>车牌号1</span>
+            <input id="invPlate1" list="plateList1" placeholder="车牌号1" />
+            <datalist id="plateList1"></datalist>
+          </label>
+          <label class="field">
+            <span>车牌号2</span>
+            <input id="invPlate2" list="plateList2" placeholder="车牌号2" />
+            <datalist id="plateList2"></datalist>
+          </label>
+          <label class="field">
+            <span>车姓名</span>
+            <input id="invDriver" list="driverList" placeholder="司机姓名" />
+            <datalist id="driverList"></datalist>
+          </label>
+          <label class="field">
+            <span>联系电话</span>
+            <input id="invPhone" list="phoneList" placeholder="联系电话" />
+            <datalist id="phoneList"></datalist>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">产品明细（最多 5 行）</div>
+        <div class="table-wrap">
+          <table class="data-table" id="itemsTable">
+            <colgroup>
+              <col style="width:34%" />
+              <col style="width:12%" />
+              <col style="width:10%" />
+              <col style="width:12%" />
+              <col style="width:16%" />
+              <col style="width:16%" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>产品名称</th>
+                <th>规格/斤</th>
+                <th>件数</th>
+                <th>重量/吨</th>
+                <th>价格/吨</th>
+                <th>金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input data-row="0" data-field="name" list="productList" /></td>
+                <td><input data-row="0" data-field="spec" inputmode="decimal" /></td>
+                <td><input data-row="0" data-field="count" inputmode="decimal" /></td>
+                <td><input data-row="0" data-field="weight" inputmode="decimal" /></td>
+                <td><input data-row="0" data-field="price" inputmode="decimal" /></td>
+                <td><input data-row="0" data-field="amount" inputmode="decimal" /></td>
+              </tr>
+              <tr>
+                <td><input data-row="1" data-field="name" list="productList" /></td>
+                <td><input data-row="1" data-field="spec" inputmode="decimal" /></td>
+                <td><input data-row="1" data-field="count" inputmode="decimal" /></td>
+                <td><input data-row="1" data-field="weight" inputmode="decimal" /></td>
+                <td><input data-row="1" data-field="price" inputmode="decimal" /></td>
+                <td><input data-row="1" data-field="amount" inputmode="decimal" /></td>
+              </tr>
+              <tr>
+                <td><input data-row="2" data-field="name" list="productList" /></td>
+                <td><input data-row="2" data-field="spec" inputmode="decimal" /></td>
+                <td><input data-row="2" data-field="count" inputmode="decimal" /></td>
+                <td><input data-row="2" data-field="weight" inputmode="decimal" /></td>
+                <td><input data-row="2" data-field="price" inputmode="decimal" /></td>
+                <td><input data-row="2" data-field="amount" inputmode="decimal" /></td>
+              </tr>
+              <tr>
+                <td><input data-row="3" data-field="name" list="productList" /></td>
+                <td><input data-row="3" data-field="spec" inputmode="decimal" /></td>
+                <td><input data-row="3" data-field="count" inputmode="decimal" /></td>
+                <td><input data-row="3" data-field="weight" inputmode="decimal" /></td>
+                <td><input data-row="3" data-field="price" inputmode="decimal" /></td>
+                <td><input data-row="3" data-field="amount" inputmode="decimal" /></td>
+              </tr>
+              <tr>
+                <td><input data-row="4" data-field="name" list="productList" /></td>
+                <td><input data-row="4" data-field="spec" inputmode="decimal" /></td>
+                <td><input data-row="4" data-field="count" inputmode="decimal" /></td>
+                <td><input data-row="4" data-field="weight" inputmode="decimal" /></td>
+                <td><input data-row="4" data-field="price" inputmode="decimal" /></td>
+                <td><input data-row="4" data-field="amount" inputmode="decimal" /></td>
+              </tr>
+            </tbody>
+          </table>
+          <datalist id="productList"></datalist>
+        </div>
+        <div class="summary-line">
+          <div id="totalsLine">总件数：0    总吨位：0.000    总价格：0</div>
+          <label class="field">
+            <span>摘要</span>
+            <input id="invSummary" placeholder="自动生成，可手动修改" />
+          </label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="btnExport">导出 Word</button>
+          <button class="ghost" id="btnClear">清空</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">AI 识图（直接导出）</div>
+        <div class="hint">选择或拍照一张销货单图片，识别后自动填入并导出 Word。</div>
+        <div class="actions">
+          <button class="primary" id="btnAiImport">选择/拍照识图</button>
+          <input id="aiImageInput" type="file" accept="image/*" capture="environment" class="hidden-input" />
+        </div>
+        <div class="hint" id="aiStatus">未识别</div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-customers" role="tabpanel">
+      <div class="card">
+        <div class="card-title">客户资料</div>
+        <div class="grid grid-4">
+          <label class="field">
+            <span>客户名称</span>
+            <input id="cusName" />
+          </label>
+          <label class="field">
+            <span>地点</span>
+            <input id="cusLocation" />
+          </label>
+          <label class="field">
+            <span>省份</span>
+            <input id="cusProvince" />
+          </label>
+          <label class="field span-2">
+            <span>备注</span>
+            <input id="cusNote" />
+          </label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="cusSave">保存/更新</button>
+          <button class="ghost" id="cusDelete">删除</button>
+          <button class="ghost" id="cusClear">清空</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">客户列表</div>
+        <div class="table-wrap">
+          <table class="data-table" id="cusTable">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>地点</th>
+                <th>省份</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-products" role="tabpanel">
+      <div class="card">
+        <div class="card-title">产品资料</div>
+        <div class="grid grid-4">
+          <label class="field">
+            <span>产品名称</span>
+            <input id="proName" />
+          </label>
+          <label class="field">
+            <span>规格/斤</span>
+            <input id="proSpec" inputmode="decimal" />
+          </label>
+          <label class="field">
+            <span>类别</span>
+            <select id="proCategory">
+              <option value="鸡">鸡</option>
+              <option value="鸡副">鸡副</option>
+              <option value="混合">混合</option>
+            </select>
+          </label>
+          <label class="field span-2">
+            <span>备注</span>
+            <input id="proNote" />
+          </label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="proSave">保存/更新</button>
+          <button class="ghost" id="proDelete">删除</button>
+          <button class="ghost" id="proClear">清空</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">产品列表</div>
+        <div class="table-wrap">
+          <table class="data-table" id="proTable">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>规格/斤</th>
+                <th>类别</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-vehicles" role="tabpanel">
+      <div class="card">
+        <div class="card-title">车辆资料</div>
+        <div class="grid grid-4">
+          <label class="field">
+            <span>车牌号1</span>
+            <input id="vehPlate1" />
+          </label>
+          <label class="field">
+            <span>车牌号2</span>
+            <input id="vehPlate2" />
+          </label>
+          <label class="field">
+            <span>车姓名</span>
+            <input id="vehDriver" />
+          </label>
+          <label class="field">
+            <span>联系电话</span>
+            <input id="vehPhone" />
+          </label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="vehSave">保存/更新</button>
+          <button class="ghost" id="vehDelete">删除</button>
+          <button class="ghost" id="vehClear">清空</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">车辆列表</div>
+        <div class="table-wrap">
+          <table class="data-table" id="vehTable">
+            <thead>
+              <tr>
+                <th>车牌号1</th>
+                <th>车牌号2</th>
+                <th>车姓名</th>
+                <th>联系电话</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-stats" role="tabpanel">
+      <div class="card">
+        <div class="card-title">筛选条件</div>
+        <div class="grid grid-4">
+          <label class="field">
+            <span>关键字</span>
+            <input id="statKeyword" />
+          </label>
+          <label class="field">
+            <span>客户</span>
+            <input id="statCustomer" list="customerList" />
+          </label>
+          <label class="field">
+            <span>地点</span>
+            <input id="statLocation" list="locationList" />
+          </label>
+          <label class="field">
+            <span>时间</span>
+            <select id="statMode">
+              <option value="自己选择">自己选择</option>
+              <option value="最近1个月">最近1个月</option>
+              <option value="最近3个月">最近3个月</option>
+              <option value="最近6个月">最近6个月</option>
+              <option value="最近1年">最近1年</option>
+              <option value="按年">按年</option>
+              <option value="按月">按月</option>
+              <option value="按季度">按季度</option>
+              <option value="所有时间" selected>所有时间</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>年</span>
+            <input id="statYear" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span>月</span>
+            <select id="statMonth">
+              <option value="">-</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>季度</span>
+            <select id="statQuarter">
+              <option value="">-</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>地区</span>
+            <select id="statRegionMode">
+              <option value="按市">按市</option>
+              <option value="按省">按省</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="btnStatQuery">查询明细</button>
+          <button class="ghost" id="btnStatCustomer">统计客户</button>
+          <button class="ghost" id="btnStatRegion">统计地区</button>
+          <button class="ghost" id="btnStatDetail">查看详情/导出</button>
+          <button class="ghost" id="btnStatEdit">修改</button>
+          <button class="ghost" id="btnStatDelete">删除</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">统计结果</div>
+        <div class="table-wrap">
+          <table class="data-table" id="statTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="summary-line" id="statSummary">汇总：-</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">操作记录</div>
+        <div class="table-wrap">
+          <table class="data-table" id="auditTable">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>操作</th>
+                <th>单号</th>
+                <th>客户</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-settings" role="tabpanel">
+      <div class="card">
+        <div class="card-title">公司与收款信息</div>
+        <div class="grid grid-3">
+          <label class="field span-2">
+            <span>标题</span>
+            <input id="setCompanyTitle" />
+          </label>
+          <label class="field span-2">
+            <span>收款账户</span>
+            <textarea id="setAccountText" rows="4"></textarea>
+          </label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="btnSaveSettings">保存设置</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">AI 接口设置</div>
+        <div class="grid grid-3">
+          <label class="field">
+            <span>AI 供应商</span>
+            <select id="setAiProvider">
+              <option value="Gemini">Gemini</option>
+              <option value="OpenAI">OpenAI</option>
+              <option value="Custom">Custom</option>
+            </select>
+          </label>
+          <label class="field span-2">
+            <span>代理地址（Netlify Functions，可选）</span>
+            <input id="setAiProxyUrl" placeholder="/.netlify/functions/ai-proxy" />
+          </label>
+          <label class="field span-2">
+            <span>API 地址</span>
+            <input id="setAiUrl" placeholder="https://.../v1/chat/completions" />
+          </label>
+          <label class="field">
+            <span>模型名称</span>
+            <input id="setAiModel" placeholder="例如：gemini-2.0-flash" />
+          </label>
+          <label class="field span-2">
+            <span>API Key</span>
+            <input id="setAiKey" type="password" />
+          </label>
+          <label class="field span-2">
+            <span>AI 提示词</span>
+            <textarea id="setAiPrompt" rows="4"></textarea>
+          </label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="btnSaveAiSettings">保存 AI 设置</button>
+          <button class="ghost" id="btnTestAi">测试接口</button>
+        </div>
+        <div class="hint" id="aiTestStatus">未测试</div>
+      </div>
+      <div class="card">
+        <div class="card-title">数据迁移与备份</div>
+        <div class="grid grid-3">
+          <label class="field">
+            <span>导入方式</span>
+            <select id="importMode">
+              <option value="merge">合并导入</option>
+              <option value="replace">覆盖导入</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>选择 JSON 文件</span>
+            <input id="importFile" type="file" accept="application/json" />
+          </label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="btnImport">导入 JSON</button>
+          <button class="ghost" id="btnExportJson">导出 JSON 备份</button>
+          <button class="ghost danger" id="btnClearAll">清空全部数据</button>
+        </div>
+        <div class="hint">
+          旧数据迁移：请用 `tools/export_db_json.py` 先导出 JSON，然后在这里导入。
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal hidden" id="modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div id="modalTitle">详情</div>
+        <button class="icon-btn" id="modalClose">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
