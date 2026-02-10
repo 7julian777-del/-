@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "kaidan-pwa-v1";
+﻿const CACHE_NAME = "kaidan-pwa-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -29,6 +29,20 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
+
+  // iOS 独立模式下导航请求优先网络，避免缓存导致白屏
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req)
+        .then((resp) => {
+          const respClone = resp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", respClone));
+          return resp;
+        })
+        .catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then((cached) => {

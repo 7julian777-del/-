@@ -383,10 +383,12 @@ function bindInvoiceInputs() {
 
   customerInput.addEventListener("input", fillFromCustomer);
   customerInput.addEventListener("blur", fillFromCustomer);
+  customerInput.addEventListener("change", fillFromCustomer);
 
   [driverInput, phoneInput, plate1Input, plate2Input].forEach((el) => {
     el.addEventListener("input", fillVehicleByAny);
     el.addEventListener("blur", fillVehicleByAny);
+    el.addEventListener("change", fillVehicleByAny);
   });
 }
 
@@ -1014,6 +1016,9 @@ async function fillInvoiceFromAi(result) {
   await refreshReferenceData();
 
   // 自动补全：客户 -> 到达地点；车牌/司机/电话 -> 互补字段
+  fillFromCustomer();
+  fillVehicleByAny();
+  await nextTick();
   fillFromCustomer();
   fillVehicleByAny();
 
