@@ -829,6 +829,11 @@ function setAiStatus(text) {
   if (el) el.textContent = text;
 }
 
+function setAiDuration(text) {
+  const el = qs("#aiDuration");
+  if (el) el.textContent = text;
+}
+
 function setAiTestStatus(text) {
   const el = qs("#aiTestStatus");
   if (el) el.textContent = text;
@@ -978,7 +983,7 @@ async function testAiApi() {
   }
 }
 
-function fillInvoiceFromAi(result) {
+async function fillInvoiceFromAi(result) {
   if (!result) return;
   const customer = (result.customer || "").trim();
   const destination = (result.destination || "").trim();
@@ -991,6 +996,9 @@ function fillInvoiceFromAi(result) {
   if (plate) qs("#invPlate1").value = plate;
   if (driver) qs("#invDriver").value = driver;
   if (date) qs("#invDate").value = formatDateInput(date);
+
+  // 强制拉最新数据库，保证 AI 填入后可正确自动关联
+  await refreshReferenceData();
 
   // 自动补全：客户 -> 到达地点；车牌/司机/电话 -> 互补字段
   fillFromCustomer();
@@ -1015,11 +1023,14 @@ function fillInvoiceFromAi(result) {
 }
 
 async function aiImportAndExport(file) {
+  const start = Date.now();
   setAiStatus("识别中…");
   const result = await aiRecognizeImage(file);
-  fillInvoiceFromAi(result);
+  await fillInvoiceFromAi(result);
   await exportInvoice();
   setAiStatus("识别完成并已导出");
+  const secs = (Date.now() - start) / 1000;
+  setAiDuration(`用时 ${secs.toFixed(1)} 秒`);
 }
 
 function getTotals() {
