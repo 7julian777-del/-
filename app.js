@@ -992,6 +992,12 @@ function fillInvoiceFromAi(result) {
   if (driver) qs("#invDriver").value = driver;
   if (date) qs("#invDate").value = formatDateInput(date);
 
+  // 自动补全：客户 -> 到达地点；车牌/司机/电话 -> 互补字段
+  fillFromCustomer();
+  fillFromPlate();
+  fillFromDriver();
+  fillFromPhone();
+
   const items = Array.isArray(result.items) ? result.items : [];
   for (let i = 0; i < 5; i += 1) {
     const it = items[i] || {};
