@@ -57,6 +57,12 @@ body {
   border-radius: 999px;
 }
 
+.status.version {
+  background: transparent;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+}
+
 .tabs {
   display: flex;
   gap: 8px;

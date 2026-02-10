@@ -1,5 +1,6 @@
 ﻿/* global docx */
 const DB_NAME = "kaidan-pwa";
+const APP_VERSION = "2026-02-10.1";
 const DB_VERSION = 1;
 const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
@@ -308,6 +309,11 @@ const CITY_TO_PROVINCE = {
 
 function setStatus(text) {
   qs("#appStatus").textContent = text;
+}
+
+function setVersion(text) {
+  const el = qs("#appVersion");
+  if (el) el.textContent = text;
 }
 
 function nextTick() {
@@ -2204,6 +2210,7 @@ async function init() {
 
   await registerServiceWorker();
   setStatus("已就绪");
+  setVersion(`v${APP_VERSION}`);
 }
 
 init().catch((err) => {
