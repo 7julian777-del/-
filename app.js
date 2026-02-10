@@ -376,9 +376,10 @@ function bindInvoiceInputs() {
   });
 
   qs("#invCustomer").addEventListener("input", fillFromCustomer);
-  qs("#invDriver").addEventListener("input", fillFromDriver);
-  qs("#invPhone").addEventListener("input", fillFromPhone);
-  qs("#invPlate1").addEventListener("input", fillFromPlate);
+  qs("#invDriver").addEventListener("input", fillVehicleByAny);
+  qs("#invPhone").addEventListener("input", fillVehicleByAny);
+  qs("#invPlate1").addEventListener("input", fillVehicleByAny);
+  qs("#invPlate2").addEventListener("input", fillVehicleByAny);
 }
 
 function autoFillProduct(row) {
@@ -533,34 +534,32 @@ function fillFromCustomer() {
   }
 }
 
-function fillFromDriver() {
-  const name = qs("#invDriver").value.trim();
-  if (!name) return;
-  const match = state.vehicles.find((v) => (v.driver || "") === name);
-  if (!match) return;
-  qs("#invPlate1").value = match.plate1 || "";
-  qs("#invPlate2").value = match.plate2 || "";
-  qs("#invPhone").value = match.phone || "";
+function findVehicleMatch(value, field) {
+  if (!value) return null;
+  const v = String(value).trim();
+  const exact = state.vehicles.find((row) => (row[field] || "") === v);
+  if (exact) return exact;
+  return state.vehicles.find((row) => (row[field] || "").includes(v));
 }
 
-function fillFromPhone() {
+function fillVehicleByAny() {
+  const plate1 = qs("#invPlate1").value.trim();
+  const plate2 = qs("#invPlate2").value.trim();
+  const driver = qs("#invDriver").value.trim();
   const phone = qs("#invPhone").value.trim();
-  if (!phone) return;
-  const match = state.vehicles.find((v) => (v.phone || "") === phone);
-  if (!match) return;
-  qs("#invPlate1").value = match.plate1 || "";
-  qs("#invPlate2").value = match.plate2 || "";
-  qs("#invDriver").value = match.driver || "";
-}
 
-function fillFromPlate() {
-  const plate = qs("#invPlate1").value.trim();
-  if (!plate) return;
-  const match = state.vehicles.find((v) => (v.plate1 || "") === plate);
+  let match =
+    findVehicleMatch(plate1, "plate1") ||
+    findVehicleMatch(plate2, "plate2") ||
+    findVehicleMatch(driver, "driver") ||
+    findVehicleMatch(phone, "phone");
+
   if (!match) return;
-  qs("#invPlate2").value = match.plate2 || "";
-  qs("#invDriver").value = match.driver || "";
-  qs("#invPhone").value = match.phone || "";
+
+  if (!plate1 && match.plate1) qs("#invPlate1").value = match.plate1;
+  if (!plate2 && match.plate2) qs("#invPlate2").value = match.plate2;
+  if (!driver && match.driver) qs("#invDriver").value = match.driver;
+  if (!phone && match.phone) qs("#invPhone").value = match.phone;
 }
 
 async function refreshReferenceData() {
@@ -1002,9 +1001,7 @@ async function fillInvoiceFromAi(result) {
 
   // 自动补全：客户 -> 到达地点；车牌/司机/电话 -> 互补字段
   fillFromCustomer();
-  fillFromPlate();
-  fillFromDriver();
-  fillFromPhone();
+  fillVehicleByAny();
 
   const items = Array.isArray(result.items) ? result.items : [];
   for (let i = 0; i < 5; i += 1) {
