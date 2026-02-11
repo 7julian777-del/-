@@ -1,6 +1,6 @@
 ﻿/* global docx */
 const DB_NAME = "kaidan-pwa";
-const APP_VERSION = "2026-02-10.4";
+const APP_VERSION = "2026-02-10.5";
 const DB_VERSION = 1;
 const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
@@ -1446,7 +1446,38 @@ async function exportInvoiceImage(data, settings) {
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("生成图片失败");
   const filename = `开单截图-${Date.now()}.png`;
-  await downloadBlob(blob, filename);
+  const autoOk = await downloadBlob(blob, filename);
+  if (autoOk === false) {
+    showImageModal(blob, filename);
+  }
+}
+
+function showImageModal(blob, filename) {
+  const wrapper = document.createElement("div");
+  const imgUrl = URL.createObjectURL(blob);
+  const img = document.createElement("img");
+  img.src = imgUrl;
+  img.style.maxWidth = "100%";
+  img.style.borderRadius = "12px";
+  img.style.border = "1px solid #e0d6cc";
+  wrapper.appendChild(img);
+
+  const btnSave = document.createElement("button");
+  btnSave.className = "primary";
+  btnSave.textContent = "保存图片";
+  btnSave.addEventListener("click", async () => {
+    await downloadBlob(blob, filename);
+  });
+
+  const btnClose = document.createElement("button");
+  btnClose.className = "ghost";
+  btnClose.textContent = "关闭";
+  btnClose.addEventListener("click", () => {
+    closeModal();
+    setTimeout(() => URL.revokeObjectURL(imgUrl), 500);
+  });
+
+  showModal("图片预览", wrapper, [btnSave, btnClose]);
 }
 
 async function autoSaveReferenceData(items, customer, location, plate1, plate2, driver, phone) {
@@ -1743,23 +1774,12 @@ async function downloadBlob(blob, filename) {
     if (navigator.canShare && navigator.canShare({ files: [imageFile] })) {
       try {
         await navigator.share({ files: [imageFile], title: filename });
-        return;
+        return true;
       } catch (err) {
         // fallback to open or download
       }
     }
-    const imgUrl = URL.createObjectURL(blob);
-    const opened = window.open(imgUrl, "_blank");
-    if (!opened) {
-      const a = document.createElement("a");
-      a.href = imgUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }
-    setTimeout(() => URL.revokeObjectURL(imgUrl), 1500);
-    return;
+    return false;
   }
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
