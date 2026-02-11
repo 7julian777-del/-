@@ -1,6 +1,6 @@
 ﻿/* global docx */
 const DB_NAME = "kaidan-pwa";
-const APP_VERSION = "2026-02-10.3";
+const APP_VERSION = "2026-02-10.4";
 const DB_VERSION = 1;
 const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
@@ -1737,6 +1737,30 @@ async function exportDocx(data, filename, settings) {
 
 async function downloadBlob(blob, filename) {
   const file = new File([blob], filename, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const isImage = blob.type === "image/png";
+  if (isImage) {
+    const imageFile = new File([blob], filename, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+      try {
+        await navigator.share({ files: [imageFile], title: filename });
+        return;
+      } catch (err) {
+        // fallback to open or download
+      }
+    }
+    const imgUrl = URL.createObjectURL(blob);
+    const opened = window.open(imgUrl, "_blank");
+    if (!opened) {
+      const a = document.createElement("a");
+      a.href = imgUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(imgUrl), 1500);
+    return;
+  }
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: filename });
