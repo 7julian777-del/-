@@ -1,6 +1,6 @@
 ﻿/* global docx */
 const DB_NAME = "kaidan-pwa";
-const APP_VERSION = "2026-02-10.5";
+const APP_VERSION = "2026-02-10.6";
 const DB_VERSION = 1;
 const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
@@ -1147,7 +1147,7 @@ async function exportInvoice() {
     account_text: await getSetting("account_text", DEFAULT_ACCOUNT_TEXT),
   };
 
-  await exportDocx({
+  const docxBlob = await exportDocxBlob({
     customer,
     date: dateStr,
     invoice_no: invoiceNo,
@@ -1163,9 +1163,9 @@ async function exportInvoice() {
     total_amount: totalAmount.toFixed(0),
   }, filename, settings);
 
-  // 生成图片并弹出保存/分享
+  let imageBlob = null;
   try {
-    await exportInvoiceImage({
+    imageBlob = await exportInvoiceImageBlob({
       customer,
       date: dateStr,
       invoice_no: invoiceNo,
@@ -1182,6 +1182,8 @@ async function exportInvoice() {
   } catch (err) {
     console.warn("生成图片失败", err);
   }
+
+  showExportModal(docxBlob, filename, imageBlob);
 
   const dateIso = parseDateToIso(dateStr);
   const invoiceId = await addItem("invoices", {
@@ -1764,6 +1766,266 @@ async function exportDocx(data, filename, settings) {
 
   const blob = await Packer.toBlob(doc);
   await downloadBlob(blob, filename);
+}
+
+function showExportModal(docxBlob, filename, imageBlob) {
+  const wrapper = document.createElement("div");
+  const info = document.createElement("div");
+  info.textContent = "请选择导出内容：";
+  info.style.marginBottom = "8px";
+  wrapper.appendChild(info);
+
+  const btns = document.createElement("div");
+  btns.style.display = "grid";
+  btns.style.gap = "8px";
+
+  const btnWord = document.createElement("button");
+  btnWord.className = "primary";
+  btnWord.textContent = "下载 Word";
+  btnWord.addEventListener("click", async () => {
+    await downloadBlob(docxBlob, filename);
+  });
+  btns.appendChild(btnWord);
+
+  if (imageBlob) {
+    const btnImg = document.createElement("button");
+    btnImg.className = "ghost";
+    btnImg.textContent = "保存图片";
+    btnImg.addEventListener("click", async () => {
+      const ok = await downloadBlob(imageBlob, `开单截图-${Date.now()}.png`);
+      if (ok === false) {
+        showImageModal(imageBlob, `开单截图-${Date.now()}.png`);
+      }
+    });
+    btns.appendChild(btnImg);
+  }
+
+  wrapper.appendChild(btns);
+  showModal("导出", wrapper, []);
+}
+async function exportDocxBlob(data, filename, settings) {
+  await loadDocxLib();
+  const {
+    Document,
+    Packer,
+    Paragraph,
+    TextRun,
+    AlignmentType,
+    Table,
+    TableRow,
+    TableCell,
+    TableLayoutType,
+    WidthType,
+    BorderStyle,
+    VerticalAlign,
+    HeightRule,
+    VerticalMergeType,
+  } = docx;
+
+  const vMergeRestart = VerticalMergeType ? VerticalMergeType.RESTART : undefined;
+  const vMergeContinue = VerticalMergeType ? VerticalMergeType.CONTINUE : undefined;
+
+  const fontName = "Microsoft YaHei";
+  const setText = (text, size = 18, bold = false) => new TextRun({
+    text: text == null ? "" : String(text),
+    font: fontName,
+    size,
+    bold,
+  });
+
+  const cell = (text, opts = {}) => new TableCell({
+    children: [new Paragraph({
+      alignment: opts.align || AlignmentType.CENTER,
+      spacing: { before: 0, after: 0 },
+      children: [setText(text, opts.size || 18, opts.bold || false)],
+    })],
+    width: opts.width,
+    columnSpan: opts.colSpan,
+    rowSpan: opts.rowSpan,
+    verticalAlign: VerticalAlign.CENTER,
+    borders: opts.borders,
+    verticalMerge: opts.vMerge,
+  });
+
+  const dxaWidths = [1457, 1346, 1346, 1346, 1346, 1588, 1104, 1479];
+  const rowHeight = { value: 284, rule: HeightRule.EXACT };
+
+  const border = {
+    top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+    bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+    left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+    right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  };
+
+  const items = data.items || [];
+  const maxRows = EXPORT_ITEM_ROWS;
+
+  const rows = [];
+
+  rows.push(new TableRow({
+    height: rowHeight,
+    children: [
+      cell(`客户：${data.customer || ""}`, { colSpan: 4, align: AlignmentType.LEFT, borders: border }),
+      cell("销售日期", { borders: border }),
+      cell(data.date || "", { borders: border }),
+      cell("序号", { borders: border }),
+      cell(String(data.invoice_no || ""), { borders: border }),
+    ],
+  }));
+
+  rows.push(new TableRow({
+    height: rowHeight,
+    children: [
+      cell("产品名称", { bold: true, borders: border }),
+      cell("规格/斤", { bold: true, borders: border }),
+      cell("件数", { bold: true, borders: border }),
+      cell("重量/吨", { bold: true, borders: border }),
+      cell("价格/吨", { bold: true, borders: border }),
+      cell("金额", { bold: true, borders: border }),
+      cell("到达地点", { bold: true, colSpan: 2, borders: border }),
+    ],
+  }));
+
+  const priceNums = [];
+  for (let i = 0; i < maxRows; i += 1) {
+    const it = items[i] || {};
+    const rawSpec = it.spec || "";
+    const rawCount = it.count || "";
+    const rawWeight = it.weight || "";
+    const rawPrice = it.price || "";
+    const rawAmount = it.amount || "";
+
+    const specNum = toFloat(rawSpec, NaN);
+    const countNum = toFloat(rawCount, NaN);
+    const priceNum = toFloat(rawPrice, NaN);
+    const amountNum = toFloat(rawAmount, NaN);
+
+    let weightNum = toFloat(rawWeight, NaN);
+    if (!Number.isFinite(weightNum) && Number.isFinite(specNum) && Number.isFinite(countNum)) {
+      weightNum = (specNum * countNum) / 2000;
+    }
+
+    let amountCalc = Number.isFinite(amountNum) ? amountNum : NaN;
+    if (!Number.isFinite(amountCalc) && Number.isFinite(weightNum) && Number.isFinite(priceNum)) {
+      amountCalc = weightNum * priceNum;
+    }
+
+    let priceCalc = Number.isFinite(priceNum) ? priceNum : NaN;
+    if (!Number.isFinite(priceCalc) && Number.isFinite(amountNum) && Number.isFinite(weightNum) && weightNum) {
+      priceCalc = amountNum / weightNum;
+    }
+
+    if (Number.isFinite(priceNum)) priceNums.push(priceNum);
+    else if (Number.isFinite(priceCalc)) priceNums.push(priceCalc);
+
+    const dispSpec = rawSpec ? rawSpec : (Number.isFinite(specNum) ? formatDecimal(specNum) : "");
+    const dispCount = rawCount ? rawCount : (Number.isFinite(countNum) ? formatDecimal(countNum) : "");
+    const dispWeight = rawWeight ? formatDecimal(toFloat(rawWeight, 0)) : (Number.isFinite(weightNum) ? weightNum.toFixed(3) : "");
+    const dispPrice = rawPrice ? rawPrice : (Number.isFinite(priceCalc) ? formatDecimal(priceCalc) : (Number.isFinite(priceNum) ? formatDecimal(priceNum) : ""));
+    const dispAmount = rawAmount ? rawAmount : (Number.isFinite(amountCalc) ? Math.round(amountCalc).toString() : (Number.isFinite(amountNum) ? Math.round(amountNum).toString() : ""));
+
+    rows.push(new TableRow({
+      height: rowHeight,
+      children: [
+        cell(it.name || "", { borders: border }),
+        cell(dispSpec, { borders: border }),
+        cell(dispCount, { borders: border }),
+        cell(dispWeight, { borders: border }),
+        cell(dispPrice, { borders: border }),
+        cell(dispAmount, { borders: border }),
+        cell(i === 0 ? (data.location || "") : "", { colSpan: 2, borders: border }),
+      ],
+    }));
+  }
+
+  rows.push(new TableRow({
+    height: rowHeight,
+    children: [
+      cell("", { borders: border }),
+      cell("", { borders: border }),
+      cell("", { borders: border }),
+      cell("", { borders: border }),
+      cell("", { borders: border }),
+      cell("", { borders: border }),
+      cell("车牌号1", { borders: border }),
+      cell(data.plate1 || "", { borders: border }),
+    ],
+  }));
+
+  let priceVal = "";
+  if (priceNums.length && priceNums.every((p) => Math.abs(p - priceNums[0]) < 1e-9)) {
+    priceVal = formatDecimal(priceNums[0]);
+  }
+
+  rows.push(new TableRow({
+    height: rowHeight,
+    children: [
+      cell("总结", { bold: true, borders: border }),
+      cell("", { bold: true, borders: border }),
+      cell(data.total_qty || "", { bold: true, borders: border }),
+      cell(data.total_weight || "", { bold: true, borders: border }),
+      cell(priceVal, { bold: true, borders: border }),
+      cell(data.total_amount || "", { bold: true, borders: border }),
+      cell("车牌号2", { borders: border }),
+      cell(data.plate2 || "", { borders: border }),
+    ],
+  }));
+
+  const accountText = settings.account_text || DEFAULT_ACCOUNT_TEXT;
+  const accountLines = accountText.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const account1 = accountLines[0] || accountText.trim();
+  const account2 = accountLines[1] || "";
+
+  rows.push(new TableRow({
+    height: rowHeight,
+    children: [
+      cell("收款账号", { borders: border, vMerge: vMergeRestart }),
+      cell(account1, { colSpan: 5, align: AlignmentType.LEFT, borders: border }),
+      cell("车姓名", { borders: border }),
+      cell(data.driver || "", { borders: border }),
+    ],
+  }));
+
+  rows.push(new TableRow({
+    height: rowHeight,
+    children: [
+      cell("", { borders: border, vMerge: vMergeContinue }),
+      cell(account2, { colSpan: 5, align: AlignmentType.LEFT, borders: border }),
+      cell("联系电话", { borders: border }),
+      cell(data.phone || "", { borders: border }),
+    ],
+  }));
+
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    layout: TableLayoutType ? TableLayoutType.FIXED : undefined,
+    rows,
+    columnWidths: dxaWidths,
+  });
+
+  const doc = new Document({
+    sections: [
+      {
+        properties: {
+          page: {
+            size: { width: 11339, height: 4535 },
+            margin: { top: 227, bottom: 227, left: 340, right: 340 },
+          },
+        },
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 0, after: 0 },
+            children: [setText(settings.company_title || DEFAULT_COMPANY_TITLE, 26, true)],
+          }),
+          table,
+        ],
+      },
+    ],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  return blob;
 }
 
 async function downloadBlob(blob, filename) {
