@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "kaidan-pwa-v3";
+﻿const CACHE_NAME = "kaidan-pwa-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -57,3 +57,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+

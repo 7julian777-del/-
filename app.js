@@ -1,6 +1,6 @@
 ﻿/* global docx */
 const DB_NAME = "kaidan-pwa";
-const APP_VERSION = "2026-02-10.6";
+const APP_VERSION = "2026-02-10.9";
 const DB_VERSION = 1;
 const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
@@ -1163,27 +1163,20 @@ async function exportInvoice() {
     total_amount: totalAmount.toFixed(0),
   }, filename, settings);
 
-  let imageBlob = null;
-  try {
-    imageBlob = await exportInvoiceImageBlob({
-      customer,
-      date: dateStr,
-      invoice_no: invoiceNo,
-      location,
-      plate1,
-      plate2,
-      driver,
-      phone,
-      items: exportItems,
-      total_qty: totalQty.toFixed(0),
-      total_weight: totalWeight.toFixed(3),
-      total_amount: totalAmount.toFixed(0),
-    }, settings);
-  } catch (err) {
-    console.warn("生成图片失败", err);
-  }
-
-  showExportModal(docxBlob, filename, imageBlob);
+  showExportModal(docxBlob, filename, {
+    customer,
+    date: dateStr,
+    invoice_no: invoiceNo,
+    location,
+    plate1,
+    plate2,
+    driver,
+    phone,
+    items: exportItems,
+    total_qty: totalQty.toFixed(0),
+    total_weight: totalWeight.toFixed(3),
+    total_amount: totalAmount.toFixed(0),
+  }, settings);
 
   const dateIso = parseDateToIso(dateStr);
   const invoiceId = await addItem("invoices", {
@@ -1439,7 +1432,7 @@ function buildInvoicePreview(data, settings) {
   return wrapper;
 }
 
-async function exportInvoiceImage(data, settings) {
+async function exportInvoiceImageBlob(data, settings) {
   await loadHtml2Canvas();
   const node = buildInvoicePreview(data, settings);
   document.body.appendChild(node);
@@ -1447,6 +1440,11 @@ async function exportInvoiceImage(data, settings) {
   node.remove();
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("生成图片失败");
+  return blob;
+}
+
+async function exportInvoiceImage(data, settings) {
+  const blob = await exportInvoiceImageBlob(data, settings);
   const filename = `开单截图-${Date.now()}.png`;
   const autoOk = await downloadBlob(blob, filename);
   if (autoOk === false) {
@@ -1464,11 +1462,30 @@ function showImageModal(blob, filename) {
   img.style.border = "1px solid #e0d6cc";
   wrapper.appendChild(img);
 
+  const hint = document.createElement("div");
+  hint.className = "hint";
+  hint.textContent = "如未弹出保存窗口，可长按图片保存到相册。";
+  wrapper.appendChild(hint);
+
   const btnSave = document.createElement("button");
   btnSave.className = "primary";
   btnSave.textContent = "保存图片";
   btnSave.addEventListener("click", async () => {
-    await downloadBlob(blob, filename);
+    const imageFile = new File([blob], filename, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+      try {
+        await navigator.share({ files: [imageFile], title: filename });
+        return;
+      } catch (err) {
+        // fall through
+      }
+    }
+    const saveUrl = URL.createObjectURL(blob);
+    const win = window.open(saveUrl, "_blank", "noopener");
+    setTimeout(() => URL.revokeObjectURL(saveUrl), 30000);
+    if (!win) {
+      alert("请长按图片保存到相册");
+    }
   });
 
   const btnClose = document.createElement("button");
@@ -1768,7 +1785,7 @@ async function exportDocx(data, filename, settings) {
   await downloadBlob(blob, filename);
 }
 
-function showExportModal(docxBlob, filename, imageBlob) {
+function showExportModal(docxBlob, filename, imageData, settings) {
   const wrapper = document.createElement("div");
   const info = document.createElement("div");
   info.textContent = "请选择导出内容：";
@@ -1781,24 +1798,45 @@ function showExportModal(docxBlob, filename, imageBlob) {
 
   const btnWord = document.createElement("button");
   btnWord.className = "primary";
-  btnWord.textContent = "下载 Word";
+  btnWord.textContent = "下载 Word并保存图片";
   btnWord.addEventListener("click", async () => {
-    await downloadBlob(docxBlob, filename);
+    btnWord.disabled = true;
+    btnWord.textContent = "处理中…";
+    try {
+      await downloadBlob(docxBlob, filename);
+      const imageBlob = await exportInvoiceImageBlob(imageData, settings);
+      const imgName = `开单截图-${Date.now()}.png`;
+      const ok = await downloadBlob(imageBlob, imgName);
+      if (ok === false) {
+        showImageModal(imageBlob, imgName);
+      }
+    } catch (err) {
+      alert("生成图片失败，请稍后重试");
+      console.warn(err);
+    } finally {
+      btnWord.disabled = false;
+      btnWord.textContent = "下载 Word并保存图片";
+    }
   });
   btns.appendChild(btnWord);
 
-  if (imageBlob) {
-    const btnImg = document.createElement("button");
-    btnImg.className = "ghost";
-    btnImg.textContent = "保存图片";
-    btnImg.addEventListener("click", async () => {
-      const ok = await downloadBlob(imageBlob, `开单截图-${Date.now()}.png`);
+  const btnImg = document.createElement("button");
+  btnImg.className = "ghost";
+  btnImg.textContent = "仅保存图片";
+  btnImg.addEventListener("click", async () => {
+    try {
+      const imageBlob = await exportInvoiceImageBlob(imageData, settings);
+      const imgName = `开单截图-${Date.now()}.png`;
+      const ok = await downloadBlob(imageBlob, imgName);
       if (ok === false) {
-        showImageModal(imageBlob, `开单截图-${Date.now()}.png`);
+        showImageModal(imageBlob, imgName);
       }
-    });
-    btns.appendChild(btnImg);
-  }
+    } catch (err) {
+      alert("生成图片失败，请稍后重试");
+      console.warn(err);
+    }
+  });
+  btns.appendChild(btnImg);
 
   wrapper.appendChild(btns);
   showModal("导出", wrapper, []);
