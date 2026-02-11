@@ -1,6 +1,6 @@
 ﻿/* global docx */
 const DB_NAME = "kaidan-pwa";
-const APP_VERSION = "2026-02-10.2";
+const APP_VERSION = "2026-02-10.3";
 const DB_VERSION = 1;
 const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
@@ -12,6 +12,7 @@ let docxReady = null;
 let h2cReady = null;
 const CATEGORIES = ["自动", "鸡", "鸡副", "混合"];
 const MAX_ITEM_ROWS = 6;
+const EXPORT_ITEM_ROWS = 7;
 
 const state = {
   db: null,
@@ -1262,6 +1263,8 @@ function buildInvoicePreview(data, settings) {
     cell.style.padding = "2px 3px";
     cell.style.textAlign = align;
     cell.style.verticalAlign = "middle";
+    cell.style.height = "0.5cm";
+    cell.style.lineHeight = "1.1";
     if (bold) cell.style.fontWeight = "700";
   };
 
@@ -1278,6 +1281,7 @@ function buildInvoicePreview(data, settings) {
 
   const addRow = (cells) => {
     const tr = document.createElement("tr");
+    tr.style.height = "0.5cm";
     cells.forEach((c) => tr.appendChild(c));
     table.appendChild(tr);
   };
@@ -1313,7 +1317,7 @@ function buildInvoicePreview(data, settings) {
   addRow(r1);
 
   const items = data.items || [];
-  const maxRows = MAX_ITEM_ROWS;
+  const maxRows = EXPORT_ITEM_ROWS;
   const priceNums = [];
   for (let i = 0; i < maxRows; i += 1) {
     const it = items[i] || {};
@@ -1561,7 +1565,7 @@ async function exportDocx(data, filename, settings) {
   };
 
   const items = data.items || [];
-  const maxRows = MAX_ITEM_ROWS;
+  const maxRows = EXPORT_ITEM_ROWS;
 
   const rows = [];
 
