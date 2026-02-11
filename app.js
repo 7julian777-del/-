@@ -6,8 +6,10 @@ const DEFAULT_COMPANY_TITLE = "毕节共利食品有限责任公司-销货单";
 const DEFAULT_ACCOUNT_TEXT = "刘正彬 6215582406000752975 中国工商银行宜宾市翠屏区西郊支行\n刘正彬 6228482469624921172 中国农业银行宜宾市翠屏区西郊支行";
 const DEFAULT_AI_PROMPT = "你是结构化信息抽取助手，只输出严格 JSON，不要输出多余文字。JSON字段为：{\"customer\":\"\", \"destination\":\"\", \"plate\":\"\", \"driver\":\"\", \"date\":\"\", \"items\":[{\"product\":\"\", \"spec_jin\":\"\", \"count\":\"\", \"price_per_ton\":\"\"}]} 图片通常包含多行产品，每行一条 items。 重要：spec_jin/count/price_per_ton 只输出纯数字（不要单位、不要斜杠、不要中文）。 规则：spec_jin 来自“(22斤/件)”中的 22；count 来自“小计/共计325件”中的 325； price_per_ton 来自“价格15030/吨”中的 15030。 示例行：红毛7只(22斤/件): ... 小计325件, 价格15030/吨。 看不清的字段填空字符串 。";
 const DOCX_CDN = "https://unpkg.com/docx@8.5.0/build/index.umd.js";
+const HTML2CANVAS_CDN = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
 
 let docxReady = null;
+let h2cReady = null;
 const CATEGORIES = ["自动", "鸡", "鸡副", "混合"];
 const MAX_ITEM_ROWS = 6;
 
@@ -877,6 +879,23 @@ function loadDocxLib() {
   return docxReady;
 }
 
+function loadHtml2Canvas() {
+  if (h2cReady) return h2cReady;
+  if (window.html2canvas) {
+    h2cReady = Promise.resolve();
+    return h2cReady;
+  }
+  h2cReady = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = HTML2CANVAS_CDN;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("html2canvas 加载失败"));
+    document.head.appendChild(script);
+  });
+  return h2cReady;
+}
+
 async function imageToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1143,6 +1162,26 @@ async function exportInvoice() {
     total_amount: totalAmount.toFixed(0),
   }, filename, settings);
 
+  // 生成图片并弹出保存/分享
+  try {
+    await exportInvoiceImage({
+      customer,
+      date: dateStr,
+      invoice_no: invoiceNo,
+      location,
+      plate1,
+      plate2,
+      driver,
+      phone,
+      items: exportItems,
+      total_qty: totalQty.toFixed(0),
+      total_weight: totalWeight.toFixed(3),
+      total_amount: totalAmount.toFixed(0),
+    }, settings);
+  } catch (err) {
+    console.warn("生成图片失败", err);
+  }
+
   const dateIso = parseDateToIso(dateStr);
   const invoiceId = await addItem("invoices", {
     invoice_no: invoiceNo,
@@ -1188,6 +1227,222 @@ async function exportInvoice() {
   await statQuery(true);
 
   alert(`已导出：${filename}`);
+}
+
+function buildInvoicePreview(data, settings) {
+  const wrapper = document.createElement("div");
+  wrapper.style.width = "20cm";
+  wrapper.style.height = "8cm";
+  wrapper.style.background = "#fff";
+  wrapper.style.color = "#000";
+  wrapper.style.padding = "0.4cm 0.6cm";
+  wrapper.style.boxSizing = "border-box";
+  wrapper.style.fontFamily = "\"Microsoft YaHei\", \"PingFang SC\", sans-serif";
+  wrapper.style.position = "absolute";
+  wrapper.style.left = "-9999px";
+  wrapper.style.top = "0";
+
+  const title = document.createElement("div");
+  title.textContent = settings.company_title || DEFAULT_COMPANY_TITLE;
+  title.style.textAlign = "center";
+  title.style.fontWeight = "700";
+  title.style.fontSize = "13pt";
+  title.style.marginBottom = "4px";
+  wrapper.appendChild(title);
+
+  const table = document.createElement("table");
+  table.style.width = "100%";
+  table.style.borderCollapse = "collapse";
+  table.style.fontSize = "9pt";
+  table.style.tableLayout = "fixed";
+
+  const setCell = (cell, text, bold = false, align = "center") => {
+    cell.textContent = text || "";
+    cell.style.border = "1px solid #000";
+    cell.style.padding = "2px 3px";
+    cell.style.textAlign = align;
+    cell.style.verticalAlign = "middle";
+    if (bold) cell.style.fontWeight = "700";
+  };
+
+  const dxaWidths = [1457, 1346, 1346, 1346, 1346, 1588, 1104, 1479];
+  const total = dxaWidths.reduce((s, v) => s + v, 0);
+  const colWidths = dxaWidths.map((v) => `${(v / total) * 100}%`);
+  const colgroup = document.createElement("colgroup");
+  colWidths.forEach((w) => {
+    const col = document.createElement("col");
+    col.style.width = w;
+    colgroup.appendChild(col);
+  });
+  table.appendChild(colgroup);
+
+  const addRow = (cells) => {
+    const tr = document.createElement("tr");
+    cells.forEach((c) => tr.appendChild(c));
+    table.appendChild(tr);
+  };
+
+  // 信息行
+  const r0 = [];
+  const c0 = document.createElement("td");
+  c0.colSpan = 4;
+  setCell(c0, `客户：${data.customer || ""}`, false, "left");
+  r0.push(c0);
+  const c1 = document.createElement("td");
+  setCell(c1, "销售日期", false);
+  const c2 = document.createElement("td");
+  setCell(c2, data.date || "", false);
+  const c3 = document.createElement("td");
+  setCell(c3, "序号", false);
+  const c4 = document.createElement("td");
+  setCell(c4, String(data.invoice_no || ""), false);
+  r0.push(c1, c2, c3, c4);
+  addRow(r0);
+
+  // 表头
+  const headers = ["产品名称", "规格/斤", "件数", "重量/吨", "价格/吨", "金额"];
+  const r1 = headers.map((h) => {
+    const td = document.createElement("td");
+    setCell(td, h, true);
+    return td;
+  });
+  const dest = document.createElement("td");
+  dest.colSpan = 2;
+  setCell(dest, "到达地点", true);
+  r1.push(dest);
+  addRow(r1);
+
+  const items = data.items || [];
+  const maxRows = MAX_ITEM_ROWS;
+  const priceNums = [];
+  for (let i = 0; i < maxRows; i += 1) {
+    const it = items[i] || {};
+    const row = [];
+    const specNum = toFloat(it.spec, NaN);
+    const countNum = toFloat(it.count, NaN);
+    const priceNum = toFloat(it.price, NaN);
+    const amountNum = toFloat(it.amount, NaN);
+    let weightNum = toFloat(it.weight, NaN);
+    if (!Number.isFinite(weightNum) && Number.isFinite(specNum) && Number.isFinite(countNum)) {
+      weightNum = (specNum * countNum) / 2000;
+    }
+    let amountCalc = Number.isFinite(amountNum) ? amountNum : NaN;
+    if (!Number.isFinite(amountCalc) && Number.isFinite(priceNum) && Number.isFinite(weightNum)) {
+      amountCalc = weightNum * priceNum;
+    }
+    let priceCalc = Number.isFinite(priceNum) ? priceNum : NaN;
+    if (!Number.isFinite(priceCalc) && Number.isFinite(amountNum) && Number.isFinite(weightNum) && weightNum) {
+      priceCalc = amountNum / weightNum;
+    }
+    if (Number.isFinite(priceNum)) priceNums.push(priceNum);
+    else if (Number.isFinite(priceCalc)) priceNums.push(priceCalc);
+
+    const cells = [
+      it.name || "",
+      it.spec || (Number.isFinite(specNum) ? formatDecimal(specNum) : ""),
+      it.count || (Number.isFinite(countNum) ? formatDecimal(countNum) : ""),
+      it.weight || (Number.isFinite(weightNum) ? weightNum.toFixed(3) : ""),
+      it.price || (Number.isFinite(priceCalc) ? formatDecimal(priceCalc) : (Number.isFinite(priceNum) ? formatDecimal(priceNum) : "")),
+      it.amount || (Number.isFinite(amountCalc) ? Math.round(amountCalc).toString() : (Number.isFinite(amountNum) ? Math.round(amountNum).toString() : "")),
+    ];
+    cells.forEach((t) => {
+      const td = document.createElement("td");
+      setCell(td, t);
+      row.push(td);
+    });
+    const d = document.createElement("td");
+    d.colSpan = 2;
+    setCell(d, i === 0 ? (data.location || "") : "", false);
+    row.push(d);
+    addRow(row);
+  }
+
+  // 车牌号1
+  const rCar = [];
+  for (let i = 0; i < 6; i += 1) {
+    const td = document.createElement("td");
+    setCell(td, "");
+    rCar.push(td);
+  }
+  const carLabel = document.createElement("td");
+  setCell(carLabel, "车牌号1");
+  const carVal = document.createElement("td");
+  setCell(carVal, data.plate1 || "");
+  rCar.push(carLabel, carVal);
+  addRow(rCar);
+
+  // 总结
+  let priceVal = "";
+  if (priceNums.length && priceNums.every((p) => Math.abs(p - priceNums[0]) < 1e-9)) {
+    priceVal = formatDecimal(priceNums[0]);
+  }
+  const rSum = [];
+  const sumCells = [
+    "总结",
+    "",
+    data.total_qty || "",
+    data.total_weight || "",
+    priceVal,
+    data.total_amount || "",
+  ];
+  sumCells.forEach((t, idx) => {
+    const td = document.createElement("td");
+    setCell(td, t, idx === 0 || idx >= 2);
+    rSum.push(td);
+  });
+  const car2 = document.createElement("td");
+  setCell(car2, "车牌号2");
+  const car2Val = document.createElement("td");
+  setCell(car2Val, data.plate2 || "");
+  rSum.push(car2, car2Val);
+  addRow(rSum);
+
+  // 收款账号 + 司机信息
+  const accountText = settings.account_text || DEFAULT_ACCOUNT_TEXT;
+  const lines = accountText.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const a1 = lines[0] || accountText.trim();
+  const a2 = lines[1] || "";
+
+  const rAcc1 = [];
+  const accLabel = document.createElement("td");
+  accLabel.rowSpan = 2;
+  setCell(accLabel, "收款账号");
+  rAcc1.push(accLabel);
+  const acc1 = document.createElement("td");
+  acc1.colSpan = 5;
+  setCell(acc1, a1, false, "left");
+  const driverLabel = document.createElement("td");
+  setCell(driverLabel, "车姓名");
+  const driverVal = document.createElement("td");
+  setCell(driverVal, data.driver || "");
+  rAcc1.push(acc1, driverLabel, driverVal);
+  addRow(rAcc1);
+
+  const rAcc2 = [];
+  const acc2 = document.createElement("td");
+  acc2.colSpan = 5;
+  setCell(acc2, a2, false, "left");
+  const phoneLabel = document.createElement("td");
+  setCell(phoneLabel, "联系电话");
+  const phoneVal = document.createElement("td");
+  setCell(phoneVal, data.phone || "");
+  rAcc2.push(acc2, phoneLabel, phoneVal);
+  addRow(rAcc2);
+
+  wrapper.appendChild(table);
+  return wrapper;
+}
+
+async function exportInvoiceImage(data, settings) {
+  await loadHtml2Canvas();
+  const node = buildInvoicePreview(data, settings);
+  document.body.appendChild(node);
+  const canvas = await window.html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+  node.remove();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("生成图片失败");
+  const filename = `开单截图-${Date.now()}.png`;
+  await downloadBlob(blob, filename);
 }
 
 async function autoSaveReferenceData(items, customer, location, plate1, plate2, driver, phone) {
