@@ -2503,15 +2503,7 @@ function showDetailModal(inv, items) {
   });
   wrapper.appendChild(table);
 
-  const btn = document.createElement("button");
-  btn.className = "primary";
-  btn.textContent = "重新导出 Word";
-  btn.addEventListener("click", async () => {
-    await loadDocxLib();
-    const settings = {
-      company_title: await getSetting("company_title", DEFAULT_COMPANY_TITLE),
-      account_text: await getSetting("account_text", DEFAULT_ACCOUNT_TEXT),
-    };
+  const buildExportData = () => {
     const exportItems = items.map((it) => ({
       name: String(it.product_name || ""),
       spec: String(it.spec_jin || ""),
@@ -2525,7 +2517,7 @@ function showDetailModal(inv, items) {
     const filename = safeFilename(
       `${inv.invoice_no}-${category}-${safeDate}-${inv.location}-${inv.customer}-${toFloat(inv.total_qty).toFixed(0)}-${inv.total_weight}-${toFloat(inv.total_amount).toFixed(0)}.docx`
     );
-    await exportDocx({
+    const docData = {
       customer: inv.customer || "",
       date: inv.date || "",
       invoice_no: inv.invoice_no || "",
@@ -2539,10 +2531,96 @@ function showDetailModal(inv, items) {
       total_qty: toFloat(inv.total_qty).toFixed(0),
       total_weight: String(inv.total_weight || ""),
       total_amount: toFloat(inv.total_amount).toFixed(0),
-    }, filename, settings);
+    };
+    const imageData = {
+      ...docData,
+      items: exportItems,
+    };
+    return { exportItems, filename, docData, imageData };
+  };
+
+  const btnBoth = document.createElement("button");
+  btnBoth.className = "primary";
+  btnBoth.textContent = "导出 Word + 图片";
+  btnBoth.addEventListener("click", async () => {
+    btnBoth.disabled = true;
+    btnBoth.textContent = "处理中…";
+    try {
+      await loadDocxLib();
+      const settings = {
+        company_title: await getSetting("company_title", DEFAULT_COMPANY_TITLE),
+        account_text: await getSetting("account_text", DEFAULT_ACCOUNT_TEXT),
+      };
+      const { filename, docData, imageData } = buildExportData();
+      const docxBlob = await exportDocxBlob(docData, filename, settings);
+      await downloadBlob(docxBlob, filename);
+      const imageBlob = await exportInvoiceImageBlob(imageData, settings);
+      const imgName = `开单截图-${Date.now()}.png`;
+      const ok = await downloadBlob(imageBlob, imgName);
+      if (ok === false) {
+        showImageModal(imageBlob, imgName);
+      }
+    } catch (err) {
+      alert("导出失败，请稍后重试");
+      console.warn(err);
+    } finally {
+      btnBoth.disabled = false;
+      btnBoth.textContent = "导出 Word + 图片";
+    }
   });
 
-  showModal("订单详情", wrapper, [btn]);
+  const btnWord = document.createElement("button");
+  btnWord.className = "ghost";
+  btnWord.textContent = "仅导出 Word";
+  btnWord.addEventListener("click", async () => {
+    btnWord.disabled = true;
+    btnWord.textContent = "处理中…";
+    try {
+      await loadDocxLib();
+      const settings = {
+        company_title: await getSetting("company_title", DEFAULT_COMPANY_TITLE),
+        account_text: await getSetting("account_text", DEFAULT_ACCOUNT_TEXT),
+      };
+      const { filename, docData } = buildExportData();
+      const docxBlob = await exportDocxBlob(docData, filename, settings);
+      await downloadBlob(docxBlob, filename);
+    } catch (err) {
+      alert("导出失败，请稍后重试");
+      console.warn(err);
+    } finally {
+      btnWord.disabled = false;
+      btnWord.textContent = "仅导出 Word";
+    }
+  });
+
+  const btnImg = document.createElement("button");
+  btnImg.className = "ghost";
+  btnImg.textContent = "仅导出图片";
+  btnImg.addEventListener("click", async () => {
+    btnImg.disabled = true;
+    btnImg.textContent = "处理中…";
+    try {
+      const settings = {
+        company_title: await getSetting("company_title", DEFAULT_COMPANY_TITLE),
+        account_text: await getSetting("account_text", DEFAULT_ACCOUNT_TEXT),
+      };
+      const { imageData } = buildExportData();
+      const imageBlob = await exportInvoiceImageBlob(imageData, settings);
+      const imgName = `开单截图-${Date.now()}.png`;
+      const ok = await downloadBlob(imageBlob, imgName);
+      if (ok === false) {
+        showImageModal(imageBlob, imgName);
+      }
+    } catch (err) {
+      alert("导出失败，请稍后重试");
+      console.warn(err);
+    } finally {
+      btnImg.disabled = false;
+      btnImg.textContent = "仅导出图片";
+    }
+  });
+
+  showModal("订单详情", wrapper, [btnBoth, btnWord, btnImg]);
 }
 
 function showEditModal(inv) {
